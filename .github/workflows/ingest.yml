@@ -1,0 +1,28 @@
+name: Daily ingest
+
+on:
+  schedule:
+    - cron: "0 11 * * 1-5"   # weekdays, 7am ET
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/ingest.mjs
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - name: Commit any changes
+        run: |
+          git config user.name "ct-pipeline bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add data/projects.json
+          git diff --staged --quiet || git commit -m "ingest: update projects"
+          git push

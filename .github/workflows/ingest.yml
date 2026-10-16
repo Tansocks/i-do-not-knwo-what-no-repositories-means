@@ -2,7 +2,9 @@ name: Daily ingest
 
 on:
   schedule:
-    - cron: "0 11 * * 1-5"   # weekdays, 7am ET
+    # GitHub cron is UTC only. 12:30 UTC is 8:30am EDT, 13:30 UTC is 8:30am EST.
+    # The clock step below runs the job only in the 8am Eastern hour, so Monday runs once.
+    - cron: "30 12,13 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -13,13 +15,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check Eastern hour
+        id: clock
+        run: |
+          hour=$(TZ=America/New_York date +%H)
+          echo "Eastern hour is $hour"
+          if [ "$hour" = "08" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-node@v4
+        if: steps.clock.outputs.run == 'true'
         with:
           node-version: 20
       - run: node scripts/ingest.mjs
+        if: steps.clock.outputs.run == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - name: Commit any changes
+        if: steps.clock.outputs.run == 'true'
         run: |
           git config user.name "ct-pipeline bot"
           git config user.email "bot@users.noreply.github.com"

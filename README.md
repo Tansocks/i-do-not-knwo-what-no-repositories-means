@@ -46,7 +46,9 @@ to confirm, not facts. Clear the flag once you have checked the source.
 
 To run it on a schedule, push this repo to GitHub, add `ANTHROPIC_API_KEY` under
 Settings → Secrets → Actions, and the workflow in `.github/workflows/ingest.yml`
-runs each weekday morning and commits any changes.
+runs every Monday at 8:30am Eastern and commits any changes. GitHub only runs
+scheduled workflows from the default branch, so this takes effect once the branch
+is merged. Use Run workflow on the Actions tab to run it on demand.
 
 ## Deploy
 

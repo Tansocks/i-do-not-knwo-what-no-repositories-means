@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CT Multifamily Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --paper:#F2F3EF; --panel:#FFFFFF; --ink:#1C2629; --muted:#5C686B; --rule:#D3D7CF; --hover:#E9EBE5;
+  --s-proposed:#C9A227; --s-approved:#4F8A4C; --s-funded:#2F6F9F; --s-construction:#D0572B; --s-completed:#6B6280; --s-denied:#9AA0A0;
+  --focus:#2F6F9F;
+  --body:"Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --num:"Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#151C1E; --panel:#1D2629; --ink:#E7EBE6; --muted:#9AA6A8; --rule:#34403F; --hover:#243033;
+    --s-proposed:#D9B546; --s-approved:#6DAA69; --s-funded:#5A9ACB; --s-construction:#E9764A; --s-completed:#9A90B4; --s-denied:#7D8585; --focus:#5A9ACB;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#151C1E; --panel:#1D2629; --ink:#E7EBE6; --muted:#9AA6A8; --rule:#34403F; --hover:#243033;
+  --s-proposed:#D9B546; --s-approved:#6DAA69; --s-funded:#5A9ACB; --s-construction:#E9764A; --s-completed:#9A90B4; --s-denied:#7D8585; --focus:#5A9ACB;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:1120px;margin:0 auto;padding:28px 20px 60px}
+h1{font-family:var(--num);font-weight:700;font-size:clamp(2rem,5vw,3rem);line-height:1;margin:0;letter-spacing:.2px}
+.sub{color:var(--muted);margin:8px 0 0;max-width:62ch}
+header{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;margin-bottom:26px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+button,select,input,textarea{font:inherit;color:inherit}
+.btn{border:1px solid var(--rule);background:var(--panel);padding:8px 14px;border-radius:6px;cursor:pointer;font-weight:600}
+.btn:hover{background:var(--hover)}
+.btn.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.btn.primary:hover{opacity:.9}
+.btn.danger{color:var(--s-construction)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+/* Pipeline */
+.pipeline{margin-bottom:22px}
+.pl-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:8px}
+.pl-total{font-family:var(--num);font-size:1.6rem;font-weight:600}
+.pl-total small{font-family:var(--body);font-size:.85rem;color:var(--muted);font-weight:400;margin-left:6px}
+.bar{display:flex;height:44px;border-radius:4px;overflow:hidden;background:var(--rule)}
+.seg{border:0;padding:0 8px;cursor:pointer;min-width:6px;color:#fff;font-family:var(--num);font-weight:600;font-size:1.05rem;text-align:left;white-space:nowrap;overflow:hidden;transition:opacity .15s, flex-grow .3s}
+.seg.off{opacity:.25}
+.legend{display:flex;flex-wrap:wrap;gap:6px 8px;margin-top:10px}
+.chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--rule);background:var(--panel);border-radius:999px;padding:4px 11px 4px 9px;cursor:pointer;font-size:.86rem}
+.chip .dot{width:10px;height:10px;border-radius:2px}
+.chip[aria-pressed="false"]{opacity:.5}
+.chip b{font-weight:600}
+
+/* Filters */
+.filters{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:10px;align-items:end;margin-bottom:16px}
+.filters label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px}
+.filters input,.filters select{width:100%;padding:8px 10px;border:1px solid var(--rule);border-radius:6px;background:var(--panel)}
+.tabs{display:flex;border:1px solid var(--rule);border-radius:6px;overflow:hidden;background:var(--panel)}
+.tabs button{border:0;background:none;padding:8px 14px;cursor:pointer;font-weight:600;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--paper)}
+
+/* List */
+.count{font-size:.85rem;color:var(--muted);margin:0 0 8px}
+.list{border-top:2px solid var(--ink)}
+.row{display:grid;grid-template-columns:78px 1fr 1fr 170px;gap:16px;align-items:center;padding:14px 6px;border-bottom:1px solid var(--rule);cursor:pointer;background:none;border-left:0;border-right:0;border-top:0;width:100%;text-align:left}
+.row:hover{background:var(--hover)}
+.units{font-family:var(--num);font-size:1.9rem;font-weight:600;line-height:1}
+.units small{display:block;font-family:var(--body);font-size:.7rem;color:var(--muted);font-weight:400;margin-top:3px}
+.pname{font-weight:600}
+.meta{color:var(--muted);font-size:.86rem}
+.dev{font-weight:500}
+.stage{display:inline-flex;align-items:center;gap:7px;font-size:.86rem;font-weight:600}
+.stage .dot{width:10px;height:10px;border-radius:2px;flex:none}
+.stage-date{display:block;color:var(--muted);font-size:.78rem;font-weight:400;margin-left:17px}
+
+/* Developers view */
+.devcard{border-bottom:1px solid var(--rule);padding:16px 6px}
+.devtop{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap}
+.devname{font-weight:700;font-size:1.05rem}
+.devsum{font-family:var(--num);font-size:1.3rem;font-weight:600}
+.devsum span{font-family:var(--body);font-size:.8rem;color:var(--muted);font-weight:400}
+.minibar{display:flex;height:8px;border-radius:2px;overflow:hidden;margin:8px 0 10px;max-width:420px;background:var(--rule)}
+.devprojects{display:flex;flex-direction:column;gap:4px}
+.devprojects button{all:unset;cursor:pointer;display:flex;gap:10px;align-items:center;font-size:.9rem;padding:3px 0}
+.devprojects button:hover{text-decoration:underline}
+.devprojects button:focus-visible{outline:2px solid var(--focus)}
+
+.empty,.status{padding:40px 10px;text-align:center;color:var(--muted)}
+.note{margin-top:28px;font-size:.82rem;color:var(--muted);max-width:75ch}
+
+/* Dialog */
+dialog{border:1px solid var(--rule);border-radius:10px;background:var(--panel);color:var(--ink);padding:0;width:min(640px,94vw);max-height:90vh}
+dialog::backdrop{background:rgba(10,15,16,.45)}
+.dlg{padding:22px 24px}
+.dlg h2{margin:0 0 4px;font-size:1.3rem}
+.dlg dl{display:grid;grid-template-columns:150px 1fr;gap:8px 14px;margin:18px 0}
+.dlg dt{color:var(--muted);font-size:.86rem}
+.dlg dd{margin:0}
+.dlg a{color:var(--focus)}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.form .full{grid-column:1/-1}
+.form label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:3px}
+.form input,.form select,.form textarea{width:100%;padding:8px 10px;border:1px solid var(--rule);border-radius:6px;background:var(--paper)}
+.form textarea{min-height:70px;resize:vertical}
+.dlg-actions{display:flex;justify-content:space-between;gap:8px;margin-top:18px;flex-wrap:wrap}
+.dlg-actions div{display:flex;gap:8px}
+.contacts{display:flex;flex-direction:column;gap:10px}
+.contact{border-left:3px solid var(--rule);padding-left:10px}
+.contact .cn{font-weight:600}
+.contact a{color:var(--focus);text-decoration:none}
+.contact a:hover{text-decoration:underline}
+.pm{font-size:.82rem;margin-top:2px}
+.ctable{width:100%;border-collapse:collapse;font-size:.9rem}
+.ctable th{text-align:left;font-size:.8rem;color:var(--muted);font-weight:600;padding:8px 6px;border-bottom:2px solid var(--ink)}
+.ctable td{padding:10px 6px;border-bottom:1px solid var(--rule);vertical-align:top}
+.ctable a{color:var(--focus);text-decoration:none}
+.ctable .plink{all:unset;cursor:pointer;display:block;font-size:.85rem}
+.ctable .plink:hover{text-decoration:underline}
+.scroll{overflow-x:auto}
+.callout{border-left:3px solid var(--s-funded);background:var(--panel);padding:12px 14px;margin:0 0 16px;font-size:.88rem;max-width:80ch}
+.missing{margin-top:22px}
+.missing h3{font-size:1rem;margin:0 0 8px}
+.tag{display:inline-block;font-size:.72rem;font-weight:600;padding:1px 7px;border-radius:3px;margin-left:6px;vertical-align:2px;border:1px solid currentColor}
+.tag.t-aff{color:var(--s-approved)}
+.tag.t-mix{color:var(--s-funded)}
+.tag.t-rehab{color:var(--muted)}
+.tag.t-rev{color:var(--s-proposed)}
+.err{color:var(--s-construction);font-size:.86rem;margin-top:8px}
+
+@media (max-width:760px){
+  .filters{grid-template-columns:1fr 1fr}
+  .filters .tabs{grid-column:1/-1}
+  .filters .search{grid-column:1/-1}
+  .row{grid-template-columns:62px 1fr;gap:6px 12px}
+  .row .c-dev,.row .c-stage{grid-column:2}
+  .units{font-size:1.6rem}
+  .dlg dl{grid-template-columns:1fr}
+  .dlg dt{margin-top:6px}
+  .form{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){.seg{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>CT multifamily pipeline</h1>
+      <p class="sub">Developers building 30 or more units in Connecticut, including affordable and mixed-income housing, and where each project stands.</p>
+    </div>
+    <div class="actions">
+      <button class="btn" id="exportBtn" hidden>Export CSV</button>
+      <button class="btn primary" id="addBtn" hidden>Add project</button>
+    </div>
+  </header>
+
+  <section class="pipeline" aria-label="Units by stage">
+    <div class="pl-head">
+      <div class="pl-total" id="plTotal">—</div>
+      <button class="btn" id="resetStages" hidden style="padding:4px 10px;font-size:.82rem">Show all stages</button>
+    </div>
+    <div class="bar" id="bar"></div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <div class="filters">
+    <div class="search"><label for="q">Search developer, project, town or contact</label><input id="q" type="search" placeholder="e.g. RMS, Stamford, a contact name"></div>
+    <div><label for="county">County</label><select id="county"><option value="">All counties</option></select></div>
+    <div><label for="htype">Housing type</label><select id="htype"><option value="">All housing</option><option value="anyaff">Any affordable units</option><option value="Affordable">Affordable</option><option value="Mixed-income">Mixed-income</option><option value="Market rate">Market rate</option><option value="Not specified">Not specified</option></select></div>
+    <div><label for="minUnits">Minimum units</label><input id="minUnits" type="number" min="1" step="1" value="30"></div>
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-view="projects">Projects</button>
+      <button role="tab" aria-selected="false" data-view="developers">Developers</button>
+      <button role="tab" aria-selected="false" data-view="contacts">Contacts</button>
+    </div>
+  </div>
+
+  <p class="count" id="count"></p>
+  <div id="out"><div class="status">Loading projects…</div></div>
+
+  <p class="note">Compiled from public news coverage, zoning records and state financing announcements (including every 30+ unit project in the CT Department of Housing and CHFA financing rounds from 2025 through June 2026); each project links to its source. Stages change quickly, so confirm with the town planning office before acting. Edit any project to update its stage.</p>
+</div>
+
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+
+<script>
+const STAGES = [
+  {id:"proposed", label:"Proposed", color:"var(--s-proposed)"},
+  {id:"approved", label:"Approved", color:"var(--s-approved)"},
+  {id:"funded", label:"Funded / pre-construction", color:"var(--s-funded)"},
+  {id:"construction", label:"Under construction", color:"var(--s-construction)"},
+  {id:"completed", label:"Completed / leasing", color:"var(--s-completed)"},
+  {id:"denied", label:"Denied / stalled", color:"var(--s-denied)"},
+];
+const STAGE = Object.fromEntries(STAGES.map(s=>[s.id,s]));
+const COUNTIES = ["Fairfield","Hartford","Litchfield","Middlesex","New Haven","New London","Tolland","Windham"];
+
+const HTYPES = ["Affordable","Mixed-income","Market rate","Not specified"];
+const WTYPES = ["New construction","Conversion / adaptive reuse","Rehab / preservation"];
+const state = { projects: [], activeStages: new Set(STAGES.map(s=>s.id)), q:"", county:"", htype:"", min:30, view:"projects", db:null, canWrite:true };
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = n => Number(n||0).toLocaleString();
+
+COUNTIES.forEach(c => { const o=document.createElement("option"); o.value=c; o.textContent=c; $("#county").appendChild(o); });
+
+function filtered(ignoreStage){
+  const q = state.q.trim().toLowerCase();
+  return state.projects.filter(p => {
+    if ((Number(p.units)||0) < state.min) return false;
+    if (state.county && p.county !== state.county) return false;
+    if (state.htype === "anyaff" && !(p.housingType==="Affordable"||p.housingType==="Mixed-income")) return false;
+    if (state.htype && state.htype !== "anyaff" && (p.housingType||"Not specified") !== state.htype) return false;
+    if (!ignoreStage && !state.activeStages.has(p.stage)) return false;
+    if (q && ![p.name,p.developer,p.town,p.address,...(p.contacts||[]).map(x=>x.name)].join(" ").toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function renderPipeline(){
+  const base = filtered(true);
+  const totals = Object.fromEntries(STAGES.map(s=>[s.id,{u:0,n:0}]));
+  base.forEach(p => { if(totals[p.stage]){ totals[p.stage].u += Number(p.units)||0; totals[p.stage].n++; } });
+  const shown = filtered(false);
+  const shownUnits = shown.reduce((a,p)=>a+(Number(p.units)||0),0);
+  const affUnits = shown.reduce((a,p)=>a+(Number(p.affordableUnits)||0),0);
+  $("#plTotal").innerHTML = `${fmt(shownUnits)}<small>units across ${shown.length} project${shown.length===1?"":"s"}${affUnits?`, including ${fmt(affUnits)} affordable`:""}</small>`;
+  const bar = $("#bar"); bar.innerHTML = "";
+  STAGES.forEach(s => {
+    const t = totals[s.id]; if(!t.u) return;
+    const b = document.createElement("button");
+    b.className = "seg" + (state.activeStages.has(s.id) ? "" : " off");
+    b.style.flexGrow = t.u; b.style.background = s.color;
+    b.title = `${s.label}: ${fmt(t.u)} units, ${t.n} projects`;
+    b.setAttribute("aria-label", `Show only ${s.label}`);
+    b.textContent = fmt(t.u);
+    b.onclick = () => { state.activeStages = new Set([s.id]); render(); };
+    bar.appendChild(b);
+  });
+  const lg = $("#legend"); lg.innerHTML = "";
+  STAGES.forEach(s => {
+    const t = totals[s.id];
+    const c = document.createElement("button");
+    c.className = "chip"; c.setAttribute("aria-pressed", state.activeStages.has(s.id));
+    c.innerHTML = `<span class="dot" style="background:${s.color}"></span>${s.label} <b>${t.n}</b>`;
+    c.onclick = () => { state.activeStages.has(s.id) ? state.activeStages.delete(s.id) : state.activeStages.add(s.id); render(); };
+    lg.appendChild(c);
+  });
+  $("#resetStages").hidden = state.activeStages.size === STAGES.length;
+}
+
+function stageHtml(p){
+  const s = STAGE[p.stage] || {label:p.stage||"Unknown", color:"var(--muted)"};
+  return `<span class="stage"><span class="dot" style="background:${s.color}"></span>${esc(s.label)}</span>${p.asOf?`<span class="stage-date">as of ${esc(p.asOf)}</span>`:""}`;
+}
+
+function tags(p){
+  let t = "";
+  if(p.housingType==="Affordable") t += `<span class="tag t-aff">Affordable</span>`;
+  else if(p.housingType==="Mixed-income") t += `<span class="tag t-mix">Mixed-income</span>`;
+  if(p.workType==="Rehab / preservation") t += `<span class="tag t-rehab">Rehab</span>`;
+  if(p.review) t += `<span class="tag t-rev">To check</span>`;
+  return t;
+}
+function primary(p){ const c = Array.isArray(p.contacts)?p.contacts:[]; return c[0]; }
+function contactsHtml(p){
+  const c = Array.isArray(p.contacts)?p.contacts:[];
+  if(!c.length) return `<span class="meta">${esc(p.contactStatus||"None yet.")} Edit the project to add one.</span>`;
+  return `<div class="contacts">` + c.map(x => `<div class="contact">
+    <div class="cn">${esc(x.name)}</div>
+    <div class="meta">${esc(x.title||"")}</div>
+    ${x.email?`<div><a href="mailto:${esc(x.email)}">${esc(x.email)}</a></div>`:""}
+    ${x.phone?`<div><a href="tel:${esc(x.phone.replace(/[^0-9+]/g,""))}">${esc(x.phone)}</a> <span class="meta">office</span></div>`:""}
+    ${x.mobile?`<div><a href="tel:${esc(x.mobile.replace(/[^0-9+]/g,""))}">${esc(x.mobile)}</a> <span class="meta">mobile</span></div>`:""}
+  </div>`).join("") + `</div>`;
+}
+function contactsToText(c){ return (Array.isArray(c)?c:[]).map(x=>[x.name,x.title,x.email,x.phone,x.mobile].map(v=>v||"").join(" | ")).join("\n"); }
+function textToContacts(t){ return String(t||"").split("\n").map(l=>l.split("|").map(v=>v.trim())).filter(a=>a[0]).map(([name,title,email,phone,mobile])=>({name,title:title||"",email:email||"",phone:phone||"",mobile:mobile||""})); }
+function renderProjects(list){
+  if(!list.length) return `<div class="empty">No projects match these filters. Lower the minimum units, clear the search, or add a project you know about.</div>`;
+  const sorted = [...list].sort((a,b)=>(Number(b.units)||0)-(Number(a.units)||0));
+  return `<div class="list">` + sorted.map(p => `
+    <button class="row" data-id="${esc(p.id)}">
+      <div class="units">${fmt(p.units)}<small>units</small></div>
+      <div><div class="pname">${esc(p.name)}${tags(p)}</div><div class="meta">${esc([p.address,p.town].filter(Boolean).join(", "))}</div></div>
+      <div class="c-dev"><div class="dev">${esc(p.developer||"Developer not identified")}</div>${primary(p)?`<div class="meta pm">Contact: ${esc(primary(p).name)}, ${esc(primary(p).title||"")}</div>`:`<div class="meta pm">No contact yet</div>`}</div>
+      <div class="c-stage">${stageHtml(p)}</div>
+    </button>`).join("") + `</div>`;
+}
+
+function renderDevelopers(list){
+  if(!list.length) return `<div class="empty">No developers match these filters.</div>`;
+  const groups = {};
+  list.forEach(p => { const k = p.developer || "Developer not identified"; (groups[k] ||= []).push(p); });
+  const rows = Object.entries(groups).map(([d,ps]) => ({d, ps, u: ps.reduce((a,p)=>a+(Number(p.units)||0),0)})).sort((a,b)=>b.u-a.u);
+  return `<div class="list">` + rows.map(g => {
+    const mini = STAGES.map(s => { const u = g.ps.filter(p=>p.stage===s.id).reduce((a,p)=>a+(Number(p.units)||0),0); return u?`<span style="flex-grow:${u};background:${s.color}" title="${s.label}: ${fmt(u)} units"></span>`:""; }).join("");
+    return `<div class="devcard">
+      <div class="devtop"><div class="devname">${esc(g.d)}</div><div class="devsum">${fmt(g.u)} <span>units in ${g.ps.length} project${g.ps.length===1?"":"s"}</span></div></div>
+      <div class="minibar">${mini}</div>
+      <div class="devprojects">${g.ps.sort((a,b)=>b.units-a.units).map(p=>`<button data-id="${esc(p.id)}">${stageHtml(p).replace(/<span class="stage-date".*$/,"")} <span>${esc(p.name)}, ${esc(p.town)} · ${fmt(p.units)} units</span></button>`).join("")}</div>
+    </div>`;
+  }).join("") + `</div>`;
+}
+
+function renderContacts(list){
+  const people = {};
+  list.forEach(p => (p.contacts||[]).forEach(c => {
+    const k = (c.email||c.name).toLowerCase();
+    (people[k] ||= {...c, projects:[]}).projects.push(p);
+  }));
+  const rows = Object.values(people).sort((a,b)=>{
+    const pa=/project manager/i.test(a.title)?0:1, pb=/project manager/i.test(b.title)?0:1;
+    return pa-pb || (a.title||"").localeCompare(b.title||"") ;
+  });
+  const missing = list.filter(p => !(p.contacts||[]).length);
+  const tel = v => `<a href="tel:${esc(String(v).replace(/[^0-9+]/g,""))}">${esc(v)}</a>`;
+  let h = `<div class="callout">ZoomInfo lists people by company and title, not by project. Where a developer has several project managers, each is listed on all of that developer's projects, so a quick call will confirm who owns which job. At smaller firms with no project manager on file, the top development person is listed. Mobile numbers flagged Do Not Call were left out.</div>`;
+  h += rows.length ? `<div class="scroll"><table class="ctable"><thead><tr><th>Contact</th><th>Email</th><th>Phone</th><th>Projects</th></tr></thead><tbody>` + rows.map(c => `<tr>
+    <td><strong>${esc(c.name)}</strong><div class="meta">${esc(c.title||"")}</div></td>
+    <td>${c.email?`<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`:"—"}</td>
+    <td>${c.phone?`<div>${tel(c.phone)} <span class="meta">office</span></div>`:""}${c.mobile?`<div>${tel(c.mobile)} <span class="meta">mobile</span></div>`:""}${!c.phone&&!c.mobile?"—":""}</td>
+    <td>${c.projects.map(p=>`<button class="plink" data-id="${esc(p.id)}">${esc(p.name)}, ${esc(p.town)}</button>`).join("")}</td>
+  </tr>`).join("") + `</tbody></table></div>` : `<div class="empty">No contacts match these filters.</div>`;
+  if(missing.length) h += `<div class="missing"><h3>Projects still missing a contact</h3><div class="list">` + missing.map(p => `<button class="row" data-id="${esc(p.id)}" style="grid-template-columns:1fr 1.4fr">
+      <div><div class="pname">${esc(p.name)}</div><div class="meta">${esc(p.town)} · ${fmt(p.units)} units</div></div>
+      <div class="meta">${esc(p.contactStatus||"No contact found yet. Check the applicant on file with the town planning office.")}</div></button>`).join("") + `</div></div>`;
+  return h;
+}
+
+function render(){
+  renderPipeline();
+  const list = filtered(false);
+  $("#count").textContent = state.projects.length ? `Showing ${list.length} of ${state.projects.length} tracked projects` : "";
+  $("#out").innerHTML = state.view === "projects" ? renderProjects(list) : state.view === "developers" ? renderDevelopers(list) : renderContacts(list);
+  $("#out").querySelectorAll("[data-id]").forEach(el => el.onclick = () => openDetail(el.dataset.id));
+}
+
+/* Detail + edit */
+const dlg = $("#dlg");
+function openDetail(id){
+  const p = state.projects.find(x=>x.id===id); if(!p) return;
+  const s = STAGE[p.stage];
+  $("#dlgBody").innerHTML = `
+    <h2>${esc(p.name)}</h2>
+    <div class="meta">${esc([p.address,p.town,p.county && p.county+" County"].filter(Boolean).join(", "))}</div>
+    ${p.review && state.canWrite && state.db ? `<div class="callout">Added or changed by the ingest from a news article. Check the source, then mark it checked. <div style="margin-top:8px"><button class="btn" id="checkBtn">Mark checked</button></div></div>`:""}
+    <dl>
+      <dt>Developer</dt><dd>${esc(p.developer||"Not identified in source")}</dd>
+      <dt>Contacts</dt><dd>${contactsHtml(p)}</dd>
+      <dt>Units</dt><dd>${fmt(p.units)}</dd>
+      <dt>Housing type</dt><dd>${esc(p.housingType||"Not specified")}${p.affordableUnits?`, ${fmt(p.affordableUnits)} affordable units`:""}</dd>
+      ${p.affordable?`<dt>Affordability</dt><dd>${esc(p.affordable)}</dd>`:""}
+      ${p.program?`<dt>Program / financing</dt><dd>${esc(p.program)}</dd>`:""}
+      ${p.workType?`<dt>Type of work</dt><dd>${esc(p.workType)}</dd>`:""}
+      <dt>Stage</dt><dd>${stageHtml(p)}</dd>
+      ${p.notes?`<dt>Notes</dt><dd>${esc(p.notes)}</dd>`:""}
+      ${p.sourceUrl?`<dt>Source</dt><dd><a href="${esc(p.sourceUrl)}" target="_blank" rel="noopener">${esc(p.sourceName||"View source")}</a></dd>`:""}
+    </dl>
+    <div class="dlg-actions">
+      <div>${state.canWrite && state.db ? `<button class="btn danger" id="delBtn">Delete</button>`:""}</div>
+      <div><button class="btn" id="closeBtn">Close</button>${state.canWrite && state.db ? `<button class="btn primary" id="editBtn">Edit project</button>`:""}</div>
+    </div>`;
+  $("#closeBtn").onclick = () => dlg.close();
+  $("#editBtn") && ($("#editBtn").onclick = () => openForm(p));
+  $("#checkBtn") && ($("#checkBtn").onclick = async () => {
+    try { await state.db.collection("projects").doc(p.id).set({...p, review:false}); openDetail(p.id); }
+    catch(e){ alert("Couldn't save: " + (e.message||e.code)); }
+  });
+  $("#delBtn") && ($("#delBtn").onclick = async () => {
+    if(!confirm(`Delete ${p.name}?`)) return;
+    try { await state.db.collection("projects").doc(p.id).delete(); dlg.close(); } catch(e){ alert("Couldn't delete: " + (e.message||e.code)); }
+  });
+  if(!dlg.open) dlg.showModal();
+}
+
+function openForm(p){
+  const isNew = !p; p = p || {stage:"proposed", asOf: new Date().toISOString().slice(0,7)};
+  const opt = (arr, v) => arr.map(o => `<option value="${esc(o.id??o)}" ${ (o.id??o)===v?"selected":""}>${esc(o.label??o)}</option>`).join("");
+  $("#dlgBody").innerHTML = `
+    <h2>${isNew?"Add project":"Edit project"}</h2>
+    <form class="form" id="f">
+      <div class="full"><label for="f-name">Project name</label><input id="f-name" name="name" required value="${esc(p.name)}"></div>
+      <div class="full"><label for="f-dev">Developer</label><input id="f-dev" name="developer" value="${esc(p.developer)}"></div>
+      <div><label for="f-town">Town</label><input id="f-town" name="town" required value="${esc(p.town)}"></div>
+      <div><label for="f-county">County</label><select id="f-county" name="county">${opt(COUNTIES,p.county)}</select></div>
+      <div class="full"><label for="f-addr">Address or site</label><input id="f-addr" name="address" value="${esc(p.address)}"></div>
+      <div><label for="f-units">Units</label><input id="f-units" name="units" type="number" min="1" required value="${esc(p.units)}"></div>
+      <div><label for="f-ht">Housing type</label><select id="f-ht" name="housingType">${opt(HTYPES,p.housingType||"Not specified")}</select></div>
+      <div><label for="f-au">Affordable units</label><input id="f-au" name="affordableUnits" type="number" min="0" value="${esc(p.affordableUnits)}"></div>
+      <div><label for="f-wt">Type of work</label><select id="f-wt" name="workType">${opt(WTYPES,p.workType||"New construction")}</select></div>
+      <div><label for="f-prog">Program / financing</label><input id="f-prog" name="program" value="${esc(p.program)}" placeholder="e.g. 4% LIHTC, Build For CT, 8-30g"></div>
+      <div class="full"><label for="f-aff">Affordability details</label><input id="f-aff" name="affordable" value="${esc(p.affordable)}" placeholder="e.g. 30% at 80% AMI"></div>
+      <div><label for="f-stage">Stage</label><select id="f-stage" name="stage">${opt(STAGES,p.stage)}</select></div>
+      <div><label for="f-asof">Stage as of</label><input id="f-asof" name="asOf" type="month" value="${esc(p.asOf)}"></div>
+      <div class="full"><label for="f-contacts">Contacts, one per line: name | title | email | office phone | mobile</label><textarea id="f-contacts" name="contactsText">${esc(contactsToText(p.contacts))}</textarea></div>
+      <div class="full"><label for="f-notes">Notes</label><textarea id="f-notes" name="notes">${esc(p.notes)}</textarea></div>
+      <div><label for="f-srcn">Source name</label><input id="f-srcn" name="sourceName" value="${esc(p.sourceName)}"></div>
+      <div><label for="f-srcu">Source link</label><input id="f-srcu" name="sourceUrl" type="url" value="${esc(p.sourceUrl)}"></div>
+    </form>
+    <div class="err" id="ferr"></div>
+    <div class="dlg-actions"><div></div><div><button class="btn" id="cancelBtn">Cancel</button><button class="btn primary" id="saveBtn">${isNew?"Add project":"Save changes"}</button></div></div>`;
+  $("#cancelBtn").onclick = () => isNew ? dlg.close() : openDetail(p.id);
+  $("#saveBtn").onclick = async () => {
+    const f = $("#f"); if(!f.reportValidity()) return;
+    const data = Object.fromEntries(new FormData(f).entries());
+    data.units = Number(data.units);
+    data.affordableUnits = data.affordableUnits===""?null:Number(data.affordableUnits);
+    data.contacts = textToContacts(data.contactsText); delete data.contactsText;
+    const id = isNew ? (data.town+"-"+data.name).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,80) + "-" + Date.now().toString(36) : p.id;
+    const btn = $("#saveBtn"); btn.disabled = true; btn.textContent = "Saving…";
+    try {
+      await state.db.collection("projects").doc(id).set({...data, updatedAt: new Date().toISOString()});
+      dlg.close();
+    } catch(e){
+      btn.disabled = false; btn.textContent = isNew?"Add project":"Save changes";
+      $("#ferr").textContent = e.code==="invalid_argument" ? "You have view-only access, so changes can't be saved." : "Couldn't save: " + (e.message||e.code);
+    }
+  };
+  if(!dlg.open) dlg.showModal();
+}
+
+/* Controls */
+$("#q").oninput = e => { state.q = e.target.value; render(); };
+$("#county").onchange = e => { state.county = e.target.value; render(); };
+$("#htype").onchange = e => { state.htype = e.target.value; render(); };
+$("#minUnits").oninput = e => { state.min = Math.max(0, Number(e.target.value)||0); render(); };
+$("#resetStages").onclick = () => { state.activeStages = new Set(STAGES.map(s=>s.id)); render(); };
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  state.view = b.dataset.view;
+  document.querySelectorAll(".tabs button").forEach(x => x.setAttribute("aria-selected", x===b));
+  render();
+});
+$("#addBtn").onclick = () => openForm(null);
+
+/* CSV export — plain browser download */
+function setupExport(){
+  const btn = document.querySelector("#exportBtn"); btn.hidden = false;
+  btn.onclick = () => {
+    const cols = ["name","developer","town","county","address","units","housingType","affordableUnits","affordable","program","workType","stage","asOf","contacts","notes","sourceName","sourceUrl"];
+    const q = v => `"${String(v??"").replace(/"/g,'""')}"`;
+    const rows = filtered(false).map(p => cols.map(c => q(c==="stage"?(STAGE[p.stage]?.label||p.stage):c==="contacts"?(p.contacts||[]).map(x=>[x.name,x.title,x.email,x.phone,x.mobile].filter(Boolean).join(", ")).join(" ; "):p[c])).join(","));
+    const blob = new Blob([[cols.join(","),...rows].join("\n")], {type:"text/csv"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = "ct-multifamily-pipeline.csv";
+    a.click(); URL.revokeObjectURL(a.href);
+  };
+}
+
+/* Data layer — talks to the local API in server.mjs.
+   Same shape as the Claude artifact db so the render code is unchanged. */
+async function load(){
+  const res = await fetch("/api/projects");
+  if(!res.ok) throw new Error("HTTP " + res.status);
+  state.projects = await res.json();
+  render();
+}
+const api = {
+  collection(){ return {
+    doc(id){ return {
+      async set(data){
+        const r = await fetch("/api/projects/" + encodeURIComponent(id), {
+          method:"PUT", headers:{"Content-Type":"application/json"}, body: JSON.stringify(data)
+        });
+        if(!r.ok) throw Object.assign(new Error(await r.text()), {code:"http_" + r.status});
+        await load();
+      },
+      async delete(){
+        const r = await fetch("/api/projects/" + encodeURIComponent(id), {method:"DELETE"});
+        if(!r.ok) throw Object.assign(new Error(await r.text()), {code:"http_" + r.status});
+        await load();
+      }
+    };}
+  };}
+};
+
+async function init(){
+  setupExport();
+  state.db = api;
+  document.querySelector("#addBtn").hidden = false;
+  try { await load(); }
+  catch(e){
+    document.querySelector("#out").innerHTML = `<div class="status">Couldn't load projects (${esc(e.message)}). Is the server running? Try <code>npm start</code>.</div>`;
+    renderPipeline();
+  }
+  setInterval(() => load().catch(()=>{}), 60000); // picks up ingest runs
+}
+render();
+init();
+</script>
+</body>
+</html>
